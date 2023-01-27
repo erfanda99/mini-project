@@ -2,6 +2,8 @@ let express = require('express')
 let moment = require('moment')
 let app = express()
 let port = 3000
+let bcrypt = require('bcrypt')
+let jwt = require('jsonwebtoken')
 
 let models = require('./models/index')
 
@@ -13,6 +15,22 @@ app.listen(port, () => {
 
 app.get('/', (req, res) => {
     res.send('Hello world!')
+})
+
+app.post('/login', (req, res) => {
+    let user = models.Users.findOne({where: {email: req.body.email}}).then(function(result){
+        if (result.length < 1) {
+            res.send("User Not Found")
+        }
+        let payload = {
+            id : result.id,
+            name : result.name,
+            email : result.email
+        }
+
+        let token = jwt.sign(payload, 'secret')
+        res.json({message : "Login Success", access_token : token})
+    })
 })
 
 function logUrl(req, res, next) {
@@ -164,6 +182,10 @@ app.get('/user/:id', (req, res) => {
     })
 })
 app.post('/user', (req, res) => {
+    let salt = bcrypt.genSaltSync(10);
+    let password = bcrypt.hashSync(req.body.password, salt)
+    req.body.password = password
+
     let createUser = models.User.create(req.body)
     if (!createUser) {
         console.error('Error create User')
